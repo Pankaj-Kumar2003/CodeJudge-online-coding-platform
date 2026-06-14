@@ -1,0 +1,88 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String       @id @default(uuid())
+  name          String?
+  email         String       @unique
+  emailVerified Boolean      // Better Auth configuration field
+  image         String?      
+  accounts      Account[]    
+  sessions      Session[]    
+  submissions   Submission[] 
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?   @db.Text
+  refreshToken          String?   @db.Text
+  idToken               String?   @db.Text
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+// 💡 RE-ADDED AND CORRECTED FOR BETTER AUTH:
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// prisma/schema.prisma
+
+model Problem {
+  id           String       @id @default(uuid())
+  title        String
+  description  String       @db.Text
+  difficulty   String       // "Easy", "Medium", "Hard"
+  category     String       // e.g., "Arrays", "Strings", "DP"
+  starterCode  String       @db.Text // Stored as a JSON string mapping languages to code templates
+  testCases    String       @db.Text // Stored as a JSON string array of inputs/outputs
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  
+  // Relations
+  submissions  Submission[]
+}
+
+// prisma/schema.prisma
+
+model Submission {
+  id           String   @id @default(uuid())
+  problemId    String
+  userId       String   // This links directly to your User model's id
+  language     String   // "cpp", "javascript", "python"
+  code         String   @db.Text
+  status       String   // "Accepted", "Wrong Answer", "Compile Error", "Runtime Error"
+  runtime      Int?     // Execution time in ms (optional)
+  memory       Int?     // Memory used in KB (optional)
+  createdAt    DateTime @default(now())
+
+  // Relations
+  problem      Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade) // 💡 ADD THIS LINE
+
+  @@index([problemId])
+  @@index([userId])
+}

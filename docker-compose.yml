@@ -1,0 +1,66 @@
+﻿version: '3.8'
+
+services:
+  # 1. Database
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: oj-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: judge0
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: judge0
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # 2. Redis Queue
+  redis-db:
+    image: redis:7-alpine
+    container_name: oj-redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  # 3. Judge0 API Server (Receives the requests)
+  judge0-server:
+    image: judge0/judge0:1.13.0
+    container_name: oj-server
+    restart: always
+    ports:
+      - "2358:2358"
+    privileged: true
+    environment:
+      - JUDGE0_DATABASE_HOST=postgres-db
+      - JUDGE0_DATABASE_PORT=5432
+      - JUDGE0_DATABASE_NAME=judge0
+      - JUDGE0_DATABASE_USER=judge0
+      - JUDGE0_DATABASE_PASSWORD=mysecretpassword
+      - JUDGE0_REDIS_HOST=redis-db
+      - JUDGE0_REDIS_PORT=6379
+    depends_on:
+      - postgres-db
+      - redis-db
+
+  # 4. Judge0 Worker (Actually runs your C++ code safely)
+  judge0-worker:
+    image: judge0/judge0:1.13.0
+    container_name: oj-worker
+    command: ["./scripts/worker"]
+    restart: always
+    privileged: true
+    environment:
+      - JUDGE0_DATABASE_HOST=postgres-db
+      - JUDGE0_DATABASE_PORT=5432
+      - JUDGE0_DATABASE_NAME=judge0
+      - JUDGE0_DATABASE_USER=judge0
+      - JUDGE0_DATABASE_PASSWORD=mysecretpassword
+      - JUDGE0_REDIS_HOST=redis-db
+      - JUDGE0_REDIS_PORT=6379
+    depends_on:
+      - postgres-db
+      - redis-db
+
+volumes:
+  postgres_data:

@@ -1,0 +1,79 @@
+datasource db {
+  provider = "postgresql"
+  // ❌ Do not put url here in Prisma 7
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma" // Keeps your custom directory intact
+}
+
+model User {
+  id            String       @id @default(uuid())
+  name          String?
+  email         String       @unique
+  emailVerified Boolean // Required by Auth.js
+  image         String? // Required by Auth.js for avatars
+  password      String? // Added to support email/password custom forms
+  accounts      Account[] // Required by Auth.js
+  sessions      Session[] // Required by Auth.js
+  submissions   Submission[] // Your existing relation
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+// Required by Auth.js for handling third-party logins (GitHub, Google, etc.)
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// Required by Auth.js if tracking database-backed sessions
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Problem {
+  id          String       @id @default(uuid())
+  title       String
+  description String
+  difficulty  String
+  starterCode Json
+  testCases   Json
+  submissions Submission[]
+  templates   Json
+  createdAt   DateTime     @default(now())
+}
+
+model Submission {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  problemId     String
+  problem       Problem  @relation(fields: [problemId], references: [id])
+  code          String
+  languageId    Int
+  status        String
+  token         String?  @unique
+  executionTime Float?
+  memoryUsed    Int?
+  createdAt     DateTime @default(now())
+}
